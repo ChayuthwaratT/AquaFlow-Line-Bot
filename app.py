@@ -3,7 +3,7 @@ from dotenv import load_dotenv  # type: ignore
 import os
 import logging
 
-from linebot.v3 import LineBotApi, WebhookHandler  # type: ignore[import-not-found]
+from linebot.v3 import WebhookHandler  # type: ignore[import-not-found]
 from linebot.v3.messaging import (  # type: ignore[import-not-found]
     Configuration,
     ApiClient,
@@ -63,6 +63,8 @@ def handle_message(event):
             )
         )
 
+
+print(app.url_map)
 
 if __name__ == "__main__":
     app.run(port=5000)
