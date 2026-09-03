@@ -9,7 +9,7 @@ from db import (
     get_pending,
     clear_pending
 )
-from mock_aquaflow import check_bill_mock,get_history_mock
+from mock_aquaflow import check_bill_mock, get_history_mock
 import os
 import logging
 
@@ -37,6 +37,8 @@ configuration = Configuration(
 handler = WebhookHandler(
     os.getenv("LINE_CHANNEL_SECRET")
 )
+
+PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "")
 
 def send_reply(reply_token, text):
     with ApiClient(configuration) as api_client:
@@ -76,9 +78,6 @@ def handle_message(event):
 
     saved_meter = get_meter_number(line_user_id)
 
-    # ==========================================
-    # STATE 1: User already has a saved meter
-    # ==========================================
     if saved_meter is not None:
 
         if user_message == "เช็คบิลของฉัน":
@@ -93,11 +92,14 @@ def handle_message(event):
                 return
 
             bill = data["bill"]
+            resident = data["resident"]
+            garbage_fee = resident.get("garbage_fee", 0.0)
 
             reply = (
                 f"เลขผู้ใช้น้ำ: {saved_meter}\n"
                 f"สถานะ: {bill['status']}\n"
                 f"ยอด: {bill['amount']} บาท\n"
+                f"ค่าขยะ: {garbage_fee} บาท\n"
                 f"กำหนดชำระ: {bill['due_date']}"
             )
 
@@ -110,8 +112,7 @@ def handle_message(event):
         if user_message == "ประวัติย้อนหลัง":
 
             history_url = (
-                "https://refurbish-arguable-credible.ngrok-free.dev"
-                f"/webview/history?meter={saved_meter}"
+                f"{PUBLIC_BASE_URL}/webview/history?meter={saved_meter}"
             )
 
             send_reply(
@@ -139,9 +140,6 @@ def handle_message(event):
         )
         return
 
-    # ==========================================
-    # STATE 2: Waiting for confirmation
-    # ==========================================
     pending = get_pending(line_user_id)
 
     if pending is not None:
@@ -181,10 +179,6 @@ def handle_message(event):
             "พิมพ์ 'ใช่' หรือ 'ไม่ใช่'"
         )
         return
-
-    # ==========================================
-    # STATE 3: New user enters meter number
-    # ==========================================
 
     data = check_bill_mock(user_message)
 
