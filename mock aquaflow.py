@@ -5,7 +5,7 @@ import os
 
 CSV_PATH = os.path.join(
     os.path.dirname(__file__),
-    "water_users_registry_20260818(1).csv"
+    "water_users_registry_20260818.csv"
 )
 
 
