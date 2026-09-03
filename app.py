@@ -1,5 +1,6 @@
 from flask import Flask, request, abort  # type: ignore
 from dotenv import load_dotenv  # type: ignore
+from db import init_db, get_meter_number, save_meter_number
 import os
 import logging
 
@@ -18,6 +19,7 @@ from linebot.v3.exceptions import InvalidSignatureError  # type: ignore[import-n
 load_dotenv()
 
 app = Flask(__name__)
+init_db()
 
 configuration = Configuration(
     access_token=os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
