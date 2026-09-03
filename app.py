@@ -1,6 +1,7 @@
-from flask import Flask, request, abort  # type: ignore
+from flask import Flask, request, abort, render_template
 from dotenv import load_dotenv  # type: ignore
 from db import init_db, get_meter_number, save_meter_number
+from mock_aquaflow import check_bill_mock
 import os
 import logging
 
@@ -64,6 +65,23 @@ def handle_message(event):
                 ]
             )
         )
+
+@app.route("/webview/history")
+def webview_history():
+    meter_number = request.args.get("meter")
+
+    if not meter_number:
+        return "ไม่พบเลขผู้ใช้น้ำ", 400
+
+    data = check_bill_mock(meter_number)
+
+    if data is None:
+        return "ไม่พบข้อมูลผู้ใช้น้ำ", 404
+
+    return render_template(
+        "history.html",
+        data=data
+    )
 
 print(app.url_map)
 
