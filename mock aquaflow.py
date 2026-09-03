@@ -58,3 +58,34 @@ def check_bill_mock(meter_number):
         },
         "bill": bill
     }
+
+
+def get_history_mock(meter_number):
+
+    meter_number = meter_number.strip()
+
+    row = _registry.get(meter_number)
+
+    if row is None:
+        return None
+
+    # Temporary mock history
+    history = [
+        {
+            "bill_period_thai": "สิงหาคม 2569",
+            "total_amount": 300,
+            "status": "จ่ายแล้ว"
+        },
+        {
+            "bill_period_thai": "กรกฎาคม 2569",
+            "total_amount": 280,
+            "status": "จ่ายแล้ว"
+        },
+        {
+            "bill_period_thai": "มิถุนายน 2569",
+            "total_amount": 320,
+            "status": "ค้างชำระ"
+        }
+    ]
+
+    return history
