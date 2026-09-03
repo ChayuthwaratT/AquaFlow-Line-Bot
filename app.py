@@ -89,11 +89,6 @@ def webview_history():
         bills=bills
     )
 
-    return render_template(
-        "history.html",
-        meter_number=meter_number,
-        bills=bills
-    )
 
 print(app.url_map)
 
