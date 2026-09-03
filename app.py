@@ -1,6 +1,14 @@
 from flask import Flask, request, abort, render_template
 from dotenv import load_dotenv  # type: ignore
-from db import init_db, get_meter_number, save_meter_number
+from db import (
+    init_db,
+    get_meter_number,
+    save_meter_number,
+    delete_meter_number,
+    save_pending,
+    get_pending,
+    clear_pending
+)
 from mock_aquaflow import check_bill_mock,get_history_mock
 import os
 import logging
@@ -30,6 +38,19 @@ handler = WebhookHandler(
     os.getenv("LINE_CHANNEL_SECRET")
 )
 
+def send_reply(reply_token, text):
+    with ApiClient(configuration) as api_client:
+        messaging_api = MessagingApi(api_client)
+
+        messaging_api.reply_message(
+            ReplyMessageRequest(
+                reply_token=reply_token,
+                messages=[
+                    TextMessage(text=text)
+                ]
+            )
+        )
+
 @app.route("/callback", methods=["POST"])
 def callback():
     signature = request.headers.get("X-Line-Signature", )
@@ -49,22 +70,145 @@ def callback():
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
 
-    user_message = event.message.text
+    line_user_id = event.source.user_id
+    user_message = event.message.text.strip()
 
-    reply = f"You said: {user_message}"
+    saved_meter = get_meter_number(line_user_id)
 
-    with ApiClient(configuration) as api_client:
+    # ==========================================
+    # STATE 1: User already has a saved meter
+    # ==========================================
+    if saved_meter is not None:
 
-        messaging_api = MessagingApi(api_client)
+        if user_message == "เช็คบิลของฉัน":
 
-        messaging_api.reply_message(
-            ReplyMessageRequest(
-                reply_token=event.reply_token,
-                messages=[
-                    TextMessage(text=reply)
-                ]
+            data = check_bill_mock(saved_meter)
+
+            if data is None or data.get("bill") is None:
+                send_reply(
+                    event.reply_token,
+                    "ไม่พบข้อมูลบิลล่าสุด"
+                )
+                return
+
+            bill = data["bill"]
+
+            reply = (
+                f"เลขผู้ใช้น้ำ: {saved_meter}\n"
+                f"สถานะ: {bill['status']}\n"
+                f"ยอด: {bill['amount']} บาท\n"
+                f"กำหนดชำระ: {bill['due_date']}"
             )
+
+            if bill.get("qr_available"):
+                reply += "\n\nQR Code พร้อมใช้งาน"
+
+            send_reply(event.reply_token, reply)
+            return
+
+        if user_message == "ประวัติย้อนหลัง":
+
+            history_url = (
+                "https://refurbish-arguable-credible.ngrok-free.dev"
+                f"/webview/history?meter={saved_meter}"
+            )
+
+            send_reply(
+                event.reply_token,
+                f"ดูประวัติบิลย้อนหลังได้ที่:\n{history_url}"
+            )
+            return
+
+        if user_message == "เปลี่ยนเลขผู้ใช้น้ำ":
+
+            delete_meter_number(line_user_id)
+
+            send_reply(
+                event.reply_token,
+                "กรุณาพิมพ์เลขผู้ใช้น้ำใหม่ที่ต้องการบันทึก"
+            )
+            return
+
+        send_reply(
+            event.reply_token,
+            f"เลขผู้ใช้น้ำที่บันทึกไว้: {saved_meter}\n"
+            "พิมพ์ 'เช็คบิลของฉัน', "
+            "'ประวัติย้อนหลัง' หรือ "
+            "'เปลี่ยนเลขผู้ใช้น้ำ'"
         )
+        return
+
+    # ==========================================
+    # STATE 2: Waiting for confirmation
+    # ==========================================
+    pending = get_pending(line_user_id)
+
+    if pending is not None:
+
+        if user_message == "ใช่":
+
+            save_meter_number(
+                line_user_id,
+                pending["meter_number"]
+            )
+
+            clear_pending(line_user_id)
+
+            send_reply(
+                event.reply_token,
+                f"บันทึกเรียบร้อย สวัสดีคุณ "
+                f"{pending['resident_name']}\n"
+                "พิมพ์ 'เช็คบิลของฉัน' "
+                "เพื่อดูสถานะบิล"
+            )
+            return
+
+        if user_message == "ไม่ใช่":
+
+            clear_pending(line_user_id)
+
+            send_reply(
+                event.reply_token,
+                "ไม่ได้บันทึกข้อมูล "
+                "กรุณาพิมพ์เลขผู้ใช้น้ำใหม่อีกครั้ง"
+            )
+            return
+
+        send_reply(
+            event.reply_token,
+            f"นี่คือบัญชีของ {pending['resident_name']} ใช่ไหม?\n"
+            "พิมพ์ 'ใช่' หรือ 'ไม่ใช่'"
+        )
+        return
+
+    # ==========================================
+    # STATE 3: New user enters meter number
+    # ==========================================
+
+    data = check_bill_mock(user_message)
+
+    if data is None:
+
+        send_reply(
+            event.reply_token,
+            "ไม่พบเลขผู้ใช้น้ำนี้ "
+            "กรุณาลองพิมพ์ใหม่อีกครั้ง"
+        )
+        return
+
+    resident_name = data["resident"]["full_name"]
+
+    save_pending(
+        line_user_id,
+        user_message,
+        resident_name
+    )
+
+    send_reply(
+        event.reply_token,
+        f"นี่คือบัญชีของ {resident_name} ใช่ไหม?\n"
+        "พิมพ์ 'ใช่' หรือ 'ไม่ใช่'"
+    )
 
 @app.route("/webview/history")
 def webview_history():
