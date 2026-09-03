@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AquaFlow - ข้อมูลผู้ใช้น้ำ</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>AquaFlow</h1>
+        <h2>ข้อมูลผู้ใช้น้ำ</h2>
+
+        <div class="card">
+
+            <h3>ข้อมูลผู้ใช้น้ำ</h3>
+
+            <p>
+                <strong>เลขผู้ใช้น้ำ:</strong>
+                {{ data.resident.meter_number }}
+            </p>
+
+            <p>
+                <strong>ชื่อผู้ใช้น้ำ:</strong>
+                {{ data.resident.full_name }}
+            </p>
+
+            <p>
+                <strong>ที่อยู่:</strong>
+                {{ data.resident.address }}
+            </p>
+
+        </div>
+
+        {% if data.bill %}
+
+        <div class="card">
+
+            <h3>บิลล่าสุด</h3>
+
+            <p>
+                <strong>จำนวนเงิน:</strong>
+                {{ data.bill.amount }} บาท
+            </p>
+
+            <p>
+                <strong>กำหนดชำระ:</strong>
+                {{ data.bill.due_date }}
+            </p>
+
+            <p>
+                <strong>สถานะ:</strong>
+                {{ data.bill.status }}
+            </p>
+
+            {% if data.bill.qr_available %}
+
+            <div class="qr-section">
+                <p><strong>QR สำหรับชำระเงิน</strong></p>
+
+                <p>
+                    QR Code จะแสดงเมื่อเชื่อมต่อกับ AquaFlow API จริง
+                </p>
+            </div>
+
+            {% endif %}
+
+        </div>
+
+        {% else %}
+
+        <div class="card">
+            <p>ไม่พบข้อมูลบิลล่าสุด</p>
+        </div>
+
+        {% endif %}
+
+    </div>
+
+</body>
+</html>
