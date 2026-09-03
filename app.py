@@ -1,4 +1,4 @@
-from flask import Flask, request, abort, render_template
+from flask import Flask, request, abort, render_template, Response
 from dotenv import load_dotenv  # type: ignore
 from db import (
     init_db,
@@ -10,6 +10,7 @@ from db import (
     clear_pending
 )
 from mock_aquaflow import check_bill_mock, get_history_mock
+from qr_util import generate_qr_png
 import os
 import logging
 
@@ -19,7 +20,8 @@ from linebot.v3.messaging import (  # type: ignore[import-not-found]
     ApiClient,
     MessagingApi,
     ReplyMessageRequest,
-    TextMessage
+    TextMessage,
+    ImageMessage
 )
 
 from linebot.v3.webhooks import MessageEvent, TextMessageContent  # type: ignore[import-not-found]
@@ -49,6 +51,22 @@ def send_reply(reply_token, text):
                 reply_token=reply_token,
                 messages=[
                     TextMessage(text=text)
+                ]
+            )
+        )
+
+def send_image_reply(reply_token, image_url):
+    with ApiClient(configuration) as api_client:
+        messaging_api = MessagingApi(api_client)
+
+        messaging_api.reply_message(
+            ReplyMessageRequest(
+                reply_token=reply_token,
+                messages=[
+                    ImageMessage(
+                        original_content_url=image_url,
+                        preview_image_url=image_url
+                    )
                 ]
             )
         )
@@ -104,9 +122,30 @@ def handle_message(event):
             )
 
             if bill.get("qr_available"):
-                reply += "\n\nQR Code พร้อมใช้งาน"
+                reply += "\n\n(พิมพ์ 'ดู QR' เพื่อดูช่องทางชำระเงิน)"
 
             send_reply(event.reply_token, reply)
+            return
+
+        if user_message == "ดู QR":
+
+            data = check_bill_mock(saved_meter)
+
+            if data is None or data.get("bill") is None:
+                send_reply(event.reply_token, "ไม่พบข้อมูลบิล")
+                return
+
+            bill = data["bill"]
+
+            if not bill.get("qr_available"):
+                send_reply(
+                    event.reply_token,
+                    "ไม่มี QR สำหรับบิลนี้ (บิลนี้จ่ายแล้ว หรือยังไม่เปิดให้ชำระ)"
+                )
+                return
+
+            qr_url = f"{PUBLIC_BASE_URL}/qr/{bill['bill_id']}.png"
+            send_image_reply(event.reply_token, qr_url)
             return
 
         if user_message == "ประวัติย้อนหลัง":
@@ -227,6 +266,14 @@ def webview_history():
         meter_number=meter_number,
         bills=bills
     )
+
+@app.route("/qr/<bill_id>.png")
+def qr_image(bill_id):
+    # TODO: once real API is available, this should just proxy
+    # GET /public/qr/{bill_id}.png instead of generating locally.
+    payload = f"AQUAFLOW-PAY:{bill_id}"
+    png_bytes = generate_qr_png(payload)
+    return Response(png_bytes, mimetype="image/png")
 
 
 print(app.url_map)
