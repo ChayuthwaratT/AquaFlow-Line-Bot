@@ -78,9 +78,29 @@ def webview_history():
     if data is None:
         return "ไม่พบข้อมูลผู้ใช้น้ำ", 404
 
+    # Temporary history data for Webview testing
+    bills = [
+        {
+            "bill_period_thai": "สิงหาคม 2569",
+            "total_amount": 300,
+            "status": "จ่ายแล้ว"
+        },
+        {
+            "bill_period_thai": "กรกฎาคม 2569",
+            "total_amount": 280,
+            "status": "จ่ายแล้ว"
+        },
+        {
+            "bill_period_thai": "มิถุนายน 2569",
+            "total_amount": 320,
+            "status": "ค้างชำระ"
+        }
+    ]
+
     return render_template(
         "history.html",
-        data=data
+        meter_number=meter_number,
+        bills=bills
     )
 
 print(app.url_map)
