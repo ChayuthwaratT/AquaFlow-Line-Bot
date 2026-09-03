@@ -69,6 +69,7 @@ def callback():
 
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
+    print("NEW HANDLER RECEIVED:", event.message.text)
 
     line_user_id = event.source.user_id
     user_message = event.message.text.strip()
