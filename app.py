@@ -21,7 +21,9 @@ from linebot.v3.messaging import (  # type: ignore[import-not-found]
     MessagingApi,
     ReplyMessageRequest,
     TextMessage,
-    ImageMessage
+    ImageMessage,
+    FlexMessage,
+    FlexContainer
 )
 
 from linebot.v3.webhooks import MessageEvent, TextMessageContent  # type: ignore[import-not-found]
@@ -66,6 +68,61 @@ def send_image_reply(reply_token, image_url):
                     ImageMessage(
                         original_content_url=image_url,
                         preview_image_url=image_url
+                    )
+                ]
+            )
+        )
+
+def send_history_flex_reply(reply_token, history_url):
+    bubble = {
+        "type": "bubble",
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": "ประวัติบิลย้อนหลัง",
+                    "weight": "bold",
+                    "size": "lg"
+                },
+                {
+                    "type": "text",
+                    "text": "ดูรายการบิลย้อนหลังของคุณได้ที่ปุ่มด้านล่าง",
+                    "size": "sm",
+                    "color": "#888888",
+                    "wrap": True,
+                    "margin": "md"
+                }
+            ]
+        },
+        "footer": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {
+                    "type": "button",
+                    "style": "primary",
+                    "action": {
+                        "type": "uri",
+                        "label": "ดูประวัติย้อนหลัง",
+                        "uri": history_url
+                    }
+                }
+            ]
+        }
+    }
+
+    with ApiClient(configuration) as api_client:
+        messaging_api = MessagingApi(api_client)
+
+        messaging_api.reply_message(
+            ReplyMessageRequest(
+                reply_token=reply_token,
+                messages=[
+                    FlexMessage(
+                        alt_text="ดูประวัติบิลย้อนหลัง",
+                        contents=FlexContainer.from_dict(bubble)
                     )
                 ]
             )
@@ -154,10 +211,7 @@ def handle_message(event):
                 f"{PUBLIC_BASE_URL}/webview/history?meter={saved_meter}"
             )
 
-            send_reply(
-                event.reply_token,
-                f"ดูประวัติบิลย้อนหลังได้ที่:\n{history_url}"
-            )
+            send_history_flex_reply(event.reply_token, history_url)
             return
 
         if user_message == "เปลี่ยนเลขผู้ใช้น้ำ":
@@ -214,7 +268,8 @@ def handle_message(event):
 
         send_reply(
             event.reply_token,
-            f"นี่คือบัญชีของ {pending['resident_name']} ใช่ไหม?\n"
+            f"พบเลขผู้ใช้น้ำ {pending['meter_number']} ในระบบ "
+            "ยืนยันว่าถูกต้องหรือไม่?\n"
             "พิมพ์ 'ใช่' หรือ 'ไม่ใช่'"
         )
         return
@@ -240,7 +295,8 @@ def handle_message(event):
 
     send_reply(
         event.reply_token,
-        f"นี่คือบัญชีของ {resident_name} ใช่ไหม?\n"
+        f"พบเลขผู้ใช้น้ำ {user_message} ในระบบ "
+        "ยืนยันว่าถูกต้องหรือไม่?\n"
         "พิมพ์ 'ใช่' หรือ 'ไม่ใช่'"
     )
 
@@ -269,8 +325,6 @@ def webview_history():
 
 @app.route("/qr/<bill_id>.png")
 def qr_image(bill_id):
-    # TODO: once real API is available, this should just proxy
-    # GET /public/qr/{bill_id}.png instead of generating locally.
     payload = f"AQUAFLOW-PAY:{bill_id}"
     png_bytes = generate_qr_png(payload)
     return Response(png_bytes, mimetype="image/png")
