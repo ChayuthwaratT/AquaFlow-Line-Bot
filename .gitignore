@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+*.pyc
+.env
+water_users_registry_20260818.csv
+bot.db
