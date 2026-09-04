@@ -1,96 +1,196 @@
+```html
 <!DOCTYPE html>
 <html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>AquaFlow - ข้อมูลผู้ใช้น้ำ</title>
+<title>ประวัติบิลย้อนหลัง</title>
 
-    <link rel="stylesheet"
-          href="{{ url_for('static', filename='style.css') }}">
+<style>
+  body {
+    font-family: sans-serif;
+    background: #f4f7fb;
+    margin: 0;
+    padding: 16px;
+  }
+
+  h1 {
+    font-size: 20px;
+    color: #233044;
+    margin-bottom: 6px;
+  }
+
+  .meter {
+    color: #6b7688;
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+
+  .bill-card {
+    background: white;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .period {
+    font-weight: 600;
+    color: #233044;
+    margin-bottom: 4px;
+  }
+
+  .bill-number {
+    font-size: 12px;
+    color: #888888;
+    margin-bottom: 5px;
+  }
+
+  .amount {
+    font-size: 15px;
+    color: #233044;
+  }
+
+  .remaining {
+    font-size: 13px;
+    color: #666666;
+    margin-top: 3px;
+  }
+
+  .status {
+    font-size: 13px;
+    padding: 5px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+
+  .status-paid {
+    background: #e3f5e8;
+    color: #2f8f4e;
+  }
+
+  .status-overdue {
+    background: #fdeceb;
+    color: #c0392b;
+  }
+
+  .status-pending {
+    background: #fff4d6;
+    color: #a66a00;
+  }
+
+  .status-partial {
+    background: #fff4d6;
+    color: #a66a00;
+  }
+
+  .status-other {
+    background: #eeeeee;
+    color: #555555;
+  }
+
+  .empty {
+    color: #777777;
+    text-align: center;
+    margin-top: 40px;
+  }
+</style>
 </head>
 
 <body>
 
-<div class="container">
+  <h1>ประวัติบิลย้อนหลัง</h1>
 
-    <h1>AquaFlow</h1>
-
-    <h2>ข้อมูลผู้ใช้น้ำ</h2>
-
-    <div class="card">
-
-        <h3>ข้อมูลผู้ใช้น้ำ</h3>
-
-        <p>
-            <strong>เลขผู้ใช้น้ำ:</strong>
-            {{ data.resident.meter_number }}
-        </p>
-
-        <p>
-            <strong>ชื่อผู้ใช้น้ำ:</strong>
-            {{ data.resident.full_name }}
-        </p>
-
-        <p>
-            <strong>ที่อยู่:</strong>
-            {{ data.resident.address }}
-        </p>
-
-    </div>
+  <div class="meter">
+    เลขผู้ใช้น้ำ: {{ meter_number }}
+  </div>
 
 
-    {% if data.bill %}
+  {% for bill in bills %}
 
-    <div class="card">
+  <div class="bill-card">
 
-        <h3>บิลล่าสุด</h3>
+    <div>
 
-        <p>
-            <strong>จำนวนเงิน:</strong>
-            {{ data.bill.amount }} บาท
-        </p>
+      <div class="period">
+        {{ bill.bill_period_thai }}
+      </div>
 
-        <p>
-            <strong>กำหนดชำระ:</strong>
-            {{ data.bill.due_date }}
-        </p>
+      <div class="bill-number">
+        เลขที่บิล: {{ bill.bill_number }}
+      </div>
 
-        <p>
-            <strong>สถานะ:</strong>
-            {{ data.bill.status }}
-        </p>
+      <div class="amount">
+        ยอดบิล: {{ bill.total_amount }} บาท
+      </div>
 
-        {% if data.bill.qr_available %}
-
-        <div class="qr-section">
-
-            <h3>การชำระเงิน</h3>
-
-            <p>
-                QR Code พร้อมใช้งาน
-            </p>
-
-            <p>
-                QR สำหรับชำระเงินจริงจะเชื่อมต่อกับ
-                AquaFlow API ในขั้นตอนถัดไป
-            </p>
-
-        </div>
-
-        {% endif %}
+      <div class="remaining">
+        คงเหลือ: {{ bill.remaining }} บาท
+      </div>
 
     </div>
+
+
+    {% if bill.status == "paid" %}
+
+      <div class="status status-paid">
+        จ่ายแล้ว
+      </div>
+
+    {% elif bill.status == "overdue" %}
+
+      <div class="status status-overdue">
+        ค้างชำระ
+      </div>
+
+    {% elif bill.status == "pending" %}
+
+      <div class="status status-pending">
+        รอชำระ
+      </div>
+
+    {% elif bill.status == "partial" %}
+
+      <div class="status status-partial">
+        ชำระบางส่วน
+      </div>
+
+    {% elif bill.status == "waived" %}
+
+      <div class="status status-other">
+        ยกเว้น
+      </div>
+
+    {% elif bill.status == "cancelled" %}
+
+      <div class="status status-other">
+        ยกเลิก
+      </div>
 
     {% else %}
 
-    <div class="card">
-        <p>ไม่พบข้อมูลบิลล่าสุด</p>
-    </div>
+      <div class="status status-other">
+        {{ bill.status }}
+      </div>
 
     {% endif %}
 
-</div>
+  </div>
+
+  {% else %}
+
+    <div class="empty">
+      ยังไม่มีประวัติบิล
+    </div>
+
+  {% endfor %}
 
 </body>
 </html>
+```
