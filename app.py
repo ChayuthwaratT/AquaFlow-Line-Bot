@@ -26,7 +26,7 @@ from linebot.v3.messaging import (  # type: ignore[import-not-found]
     FlexContainer
 )
 
-from linebot.v3.webhooks import MessageEvent, TextMessageContent  # type: ignore[import-not-found]
+from linebot.v3.webhooks import MessageEvent, TextMessageContent, FollowEvent  # type: ignore[import-not-found]
 from linebot.v3.exceptions import InvalidSignatureError  # type: ignore[import-not-found]
 
 load_dotenv()
@@ -228,6 +228,14 @@ def callback():
         abort(400)
 
     return "OK"
+
+@handler.add(FollowEvent)
+def handle_follow(event):
+    send_reply(
+        event.reply_token,
+        "ขอบคุณที่เพิ่มเราเป็นเพื่อน\n"
+        "กรุณาพิมพ์เลขผู้ใช้น้ำของคุณเพื่อดำเนินการต่อ"
+    )
 
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
