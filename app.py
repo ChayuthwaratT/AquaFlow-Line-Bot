@@ -128,6 +128,91 @@ def send_history_flex_reply(reply_token, history_url):
             )
         )
 
+def send_bill_flex_reply(reply_token, meter_number, bill, garbage_fee):
+    is_overdue = bill["status"] == "ค้างชำระ"
+    badge_color = "#c0392b" if is_overdue else "#2f8f4e"
+
+    def row(label, value):
+        return {
+            "type": "box",
+            "layout": "horizontal",
+            "margin": "md",
+            "contents": [
+                {"type": "text", "text": label, "size": "sm", "color": "#888888", "flex": 3},
+                {"type": "text", "text": str(value), "size": "sm", "color": "#233044", "flex": 5, "wrap": True}
+            ]
+        }
+
+    body_contents = [
+        {
+            "type": "box",
+            "layout": "horizontal",
+            "contents": [
+                {"type": "text", "text": "บิลน้ำประปา", "weight": "bold", "size": "lg", "flex": 5},
+                {
+                    "type": "box",
+                    "layout": "vertical",
+                    "backgroundColor": badge_color,
+                    "cornerRadius": "20px",
+                    "paddingAll": "6px",
+                    "paddingStart": "12px",
+                    "paddingEnd": "12px",
+                    "flex": 3,
+                    "contents": [
+                        {"type": "text", "text": bill["status"], "size": "xs", "color": "#ffffff", "align": "center", "weight": "bold"}
+                    ]
+                }
+            ]
+        },
+        {"type": "separator", "margin": "md"},
+        row("เลขผู้ใช้น้ำ", meter_number),
+        row("ยอดชำระ", f"{bill['amount']} บาท"),
+        row("ค่าขยะ", f"{garbage_fee} บาท"),
+        row("กำหนดชำระ", bill["due_date"]),
+    ]
+
+    bubble = {
+        "type": "bubble",
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": body_contents
+        }
+    }
+
+    if bill.get("qr_available"):
+        bubble["footer"] = {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {
+                    "type": "button",
+                    "style": "primary",
+                    "color": "#2f6bb0",
+                    "action": {
+                        "type": "message",
+                        "label": "ดู QR ชำระเงิน",
+                        "text": "ดู QR"
+                    }
+                }
+            ]
+        }
+
+    with ApiClient(configuration) as api_client:
+        messaging_api = MessagingApi(api_client)
+
+        messaging_api.reply_message(
+            ReplyMessageRequest(
+                reply_token=reply_token,
+                messages=[
+                    FlexMessage(
+                        alt_text=f"สถานะบิล: {bill['status']} ยอด {bill['amount']} บาท",
+                        contents=FlexContainer.from_dict(bubble)
+                    )
+                ]
+            )
+        )
+
 @app.route("/callback", methods=["POST"])
 def callback():
     signature = request.headers.get("X-Line-Signature", )
@@ -170,18 +255,7 @@ def handle_message(event):
             resident = data["resident"]
             garbage_fee = resident.get("garbage_fee", 0.0)
 
-            reply = (
-                f"เลขผู้ใช้น้ำ: {saved_meter}\n"
-                f"สถานะ: {bill['status']}\n"
-                f"ยอด: {bill['amount']} บาท\n"
-                f"ค่าขยะ: {garbage_fee} บาท\n"
-                f"กำหนดชำระ: {bill['due_date']}"
-            )
-
-            if bill.get("qr_available"):
-                reply += "\n\n(พิมพ์ 'ดู QR' เพื่อดูช่องทางชำระเงิน)"
-
-            send_reply(event.reply_token, reply)
+            send_bill_flex_reply(event.reply_token, saved_meter, bill, garbage_fee)
             return
 
         if user_message == "ดู QR":
