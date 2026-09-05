@@ -59,10 +59,7 @@ handler = WebhookHandler(
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "")
 
 # Real AquaFlow API URL
-AQUAFLOW_BASE_URL = os.getenv(
-    "AQUAFLOW_BASE_URL",
-    "https://aquaflow.sitthisaktdev.com"
-)
+AQUAFLOW_BASE_URL = os.getenv("AQUAFLOW_BASE_URL")
 
 
 # =========================
