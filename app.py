@@ -1,4 +1,4 @@
-﻿from flask import Flask, request, abort, render_template
+from flask import Flask, request, abort, render_template
 from dotenv import load_dotenv  # type: ignore
 
 from db import (
